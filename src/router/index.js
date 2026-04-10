@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
-
-import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -87,8 +86,20 @@ const router = createRouter({
       },
       beforeEnter: async (to, from, next) => {
         try {
-          const response = await axios.get(`${import.meta.env.VITE_API_URL}/meta/anilist/info/${to.params.id}`)
-          const animeInfo = response.data
+          const infoQuery = `
+            query ($id: Int) {
+              Media(id: $id, type: ANIME) {
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+              }
+            }
+          `
+          const response = await queryAnilist(infoQuery, { id: parseInt(to.params.id) })
+          const animeInfo = response.data.Media
 
           const title =
             animeInfo.title.romaji || animeInfo.title.userPreferred || animeInfo.title.english
@@ -99,7 +110,7 @@ const router = createRouter({
 
           next()
         } catch (error) {
-          console.error(error)
+          console.error('Failed to fetch anime title:', error)
           next()
         }
       }

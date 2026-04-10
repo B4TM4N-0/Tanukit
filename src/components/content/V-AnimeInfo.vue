@@ -52,7 +52,7 @@
                   preload="auto"
                   width="800"
                   height="500"
-                  :poster="anime.cover"
+                  :poster="anime.coverImage.large"
                   data-setup="{}"
                 ></video>
               </div>
@@ -123,7 +123,7 @@
                   class="btn relative group border border-dark-300"
                 >
                   <img
-                    :src="relation.image"
+                    :src="relation.coverImage.large"
                     draggable="false"
                     class="w-full h-10 object-cover opacity-10"
                     alt="Anime Cover"
@@ -140,7 +140,7 @@
             <div class="flex-col md:flex-row lg:items-start">
               <div class="items-center justify-center mx-auto text-center">
                 <img
-                  :src="anime.image"
+                  :src="anime.coverImage.large"
                   draggable="false"
                   class="w-75 pt-5 object-cover mb-4 md:mr-4 px-2"
                 />
@@ -175,9 +175,9 @@
                 <div class="items-center">
                   <div class="flex items-center mb-2">
                     <div i-openmoji-star class="mr-1 py-2"></div>
-                    <span>{{ (anime.rating / 10).toFixed(1) }}</span>
+                    <span>{{ (anime.averageScore / 10).toFixed(1) }}</span>
                   </div>
-                  <p class="text-sm mr-2">Studio: {{ anime.studios[0] }}</p>
+                  <p class="text-sm mr-2">Studio: {{ anime.studios.nodes[0]?.name }}</p>
                   <div>
                     <p class="text-sm mr-2">
                       Type:
@@ -192,9 +192,6 @@
                     Alternate Title: {{ anime.title?.native || anime.title?.romaji }}
                   </p>
                   <p class="text-sm mr-2">Status: {{ anime.status }}</p>
-                  <p class="text-sm mr-2">
-                    Sub/Dub: <span class="uppercase">{{ anime.subOrDub }}</span>
-                  </p>
                   <p class="text-sm mr-2">Country: {{ anime.countryOfOrigin }}</p>
                   <div class="text-sm mr-2 flex items-center">
                     <span>Genres:</span>
@@ -227,15 +224,15 @@
         <span class="text-lg">You may also like</span>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 animated mt-5">
           <RouterLink
-            :to="'/anime/' + recommendation.id"
-            v-for="recommendation in anime.recommendations.slice(0, 6)"
-            :key="recommendation.id"
+            :to="'/anime/' + recommendation.mediaRecommendation.id"
+            v-for="recommendation in anime.recommendations.nodes.slice(0, 6)"
+            :key="recommendation.mediaRecommendation.id"
             class="card border border-dark-50 rounded-lg relative overflow-hidden group"
           >
             <div class="relative">
               <img
-                :src="recommendation.image"
-                :alt="recommendation.title.userPreferred"
+                :src="recommendation.mediaRecommendation.coverImage.large"
+                :alt="recommendation.mediaRecommendation.title.userPreferred"
                 draggable="false"
                 class="w-full h-60 md:h-80 object-cover transition-opacity duration-300"
               />
@@ -246,12 +243,12 @@
             </div>
             <div class="p-4">
               <h3 class="font-semibold truncate">
-                {{ recommendation.title?.userPreferred || recommendation.title?.english }}
+                {{ recommendation.mediaRecommendation.title?.userPreferred || recommendation.mediaRecommendation.title?.english }}
               </h3>
-              <p class="text-sm">Type: {{ recommendation.type }}</p>
+              <p class="text-sm">Type: {{ recommendation.mediaRecommendation.type }}</p>
               <div class="flex items-center">
                 <div i-openmoji-star class="mr-1 py-2" />
-                <span>{{ (recommendation.rating / 10).toFixed(1) }}</span>
+                <span>{{ (recommendation.mediaRecommendation.averageScore / 10).toFixed(1) }}</span>
               </div>
             </div>
           </RouterLink>
@@ -290,7 +287,7 @@ export default {
   },
   computed: {
     filteredRelations() {
-      return this.anime.relations.filter((relation) => this.isPrequelOrSequel(relation))
+      return this.anime.relations.nodes.filter((relation) => this.isPrequelOrSequel(relation))
     },
     displayedEpisodes() {
       if (this.paheEpisodes.length > 0) {
@@ -380,16 +377,22 @@ export default {
           query ($id: Int) {
             Media(id: $id, type: ANIME) {
               id
+              type
               title {
                 romaji
                 english
                 native
+                userPreferred
               }
               coverImage {
                 large
                 extraLarge
               }
               bannerImage
+              trailer {
+                id
+                site
+              }
               description
               episodes
               status
@@ -398,6 +401,7 @@ export default {
               genres
               averageScore
               popularity
+              countryOfOrigin
               studios {
                 nodes {
                   name
@@ -410,6 +414,38 @@ export default {
                   }
                   image {
                     large
+                  }
+                }
+              }
+              relations {
+                nodes {
+                  id
+                  title {
+                    romaji
+                    english
+                    native
+                  }
+                  type
+                  relationType
+                  coverImage {
+                    large
+                  }
+                }
+              }
+              recommendations {
+                nodes {
+                  mediaRecommendation {
+                    id
+                    title {
+                      romaji
+                      english
+                      native
+                    }
+                    coverImage {
+                      large
+                    }
+                    type
+                    rating
                   }
                 }
               }
