@@ -1,3 +1,4 @@
+
 <template>
   <div class="relative w-full bg-black group" ref="playerWrapper">
     <video
@@ -10,6 +11,7 @@
       @ended="onEnded"
       @waiting="onBuffering"
       @playing="onPlaying"
+      @pause="onPause"
     ></video>
 
     <div v-if="buffering" class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -17,8 +19,8 @@
     </div>
 
     <div
-      class="absolute inset-0 flex items-center justify-center pointer-events-none"
       v-if="!playing && !buffering"
+      class="absolute inset-0 flex items-center justify-center pointer-events-none"
     >
       <div class="w-16 h-16 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
         <div i-carbon-play-filled class="text-white text-4xl ml-1"></div>
@@ -39,7 +41,7 @@
           :style="{ width: progressPercent + '%' }"
         ></div>
         <div
-          class="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-orange-400 rounded-full pointer-events-none"
+          class="absolute top-1/2 w-3 h-3 bg-orange-400 rounded-full pointer-events-none"
           :style="{ left: progressPercent + '%', transform: 'translateX(-50%) translateY(-50%)' }"
         ></div>
       </div>
@@ -49,15 +51,12 @@
           <button @click="togglePlay" class="text-white hover:text-orange-400 transition-colors">
             <div :class="playing ? 'i-carbon-pause-filled' : 'i-carbon-play-filled'" class="text-xl"></div>
           </button>
-
           <button @click="skip(-10)" class="text-white hover:text-orange-400 transition-colors">
             <div i-carbon-skip-back class="text-xl"></div>
           </button>
-
           <button @click="skip(10)" class="text-white hover:text-orange-400 transition-colors">
             <div i-carbon-skip-forward class="text-xl"></div>
           </button>
-
           <div class="flex items-center gap-2">
             <button @click="toggleMute" class="text-white hover:text-orange-400 transition-colors">
               <div :class="muted ? 'i-carbon-volume-mute' : 'i-carbon-volume-up'" class="text-xl"></div>
@@ -72,10 +71,8 @@
               class="w-16 accent-orange-400"
             />
           </div>
-
           <span class="text-white text-xs">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
         </div>
-
         <div class="flex items-center gap-3">
           <button @click="toggleFullscreen" class="text-white hover:text-orange-400 transition-colors">
             <div :class="fullscreen ? 'i-carbon-minimize' : 'i-carbon-maximize'" class="text-xl"></div>
@@ -115,58 +112,66 @@ export default {
   },
   watch: {
     src(val) {
-      if (val) this.loadSource(val)
+      if (val) this.$nextTick(() => this.loadSource(val))
     }
   },
   mounted() {
+    if (this.src) this.loadSource(this.src)
     document.addEventListener('fullscreenchange', this.onFullscreenChange)
     document.addEventListener('keydown', this.onKeyDown)
   },
   beforeUnmount() {
-    if (this.hls) this.hls.destroy()
+    if (this.hls) {
+      this.hls.destroy()
+      this.hls = null
+    }
     document.removeEventListener('fullscreenchange', this.onFullscreenChange)
     document.removeEventListener('keydown', this.onKeyDown)
   },
   methods: {
     loadSource(url) {
       const video = this.$refs.videoEl
-      if (!video || !url) return
+      if (!video) return
+
+      if (this.hls) {
+        this.hls.destroy()
+        this.hls = null
+      }
 
       if (Hls.isSupported()) {
-        if (this.hls) this.hls.destroy()
-
-        this.hls = new Hls()
-
+        this.hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false
+        })
         this.hls.loadSource(url)
         this.hls.attachMedia(video)
-
         this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play()
+          video.play().catch(() => {})
         })
-
         this.hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            console.error('Fatal HLS error:', data)
+            console.error('HLS fatal error:', data.type, data.details)
           }
         })
-      } else {
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = url
+        video.play().catch(() => {})
       }
     },
     togglePlay() {
       const video = this.$refs.videoEl
       if (!video) return
-      video.paused ? video.play() : video.pause()
+      video.paused ? video.play().catch(() => {}) : video.pause()
     },
     skip(seconds) {
       const video = this.$refs.videoEl
       if (!video) return
-      video.currentTime = Math.min(Math.max(video.currentTime + seconds, 0), video.duration)
+      video.currentTime = Math.min(Math.max(video.currentTime + seconds, 0), video.duration || 0)
     },
     seek(event) {
       const video = this.$refs.videoEl
       const bar = this.$refs.progressBar
-      if (!video || !bar) return
+      if (!video || !bar || !video.duration) return
       const rect = bar.getBoundingClientRect()
       const ratio = (event.clientX - rect.left) / rect.width
       video.currentTime = ratio * video.duration
@@ -215,6 +220,9 @@ export default {
     onPlaying() {
       this.playing = true
       this.buffering = false
+    },
+    onPause() {
+      this.playing = false
     },
     onKeyDown(event) {
       if (event.keyCode === 37) this.skip(-5)
