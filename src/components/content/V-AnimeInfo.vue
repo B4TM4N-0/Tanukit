@@ -1,4 +1,3 @@
-
 <template>
   <div class="container mx-auto">
     <template v-if="isLoading">
@@ -44,17 +43,7 @@
                 ></iframe>
               </div>
               <div v-else>
-                <video
-                  ref="videoElement"
-                  id="video-element"
-                  class="video-js w-full h-60 md:h-140 z-10 py-1 px-2"
-                  controls
-                  preload="auto"
-                  width="800"
-                  height="500"
-                  :poster="anime.coverImage?.large"
-                  data-setup="{}"
-                ></video>
+                <VideoPlayer :src="streamUrl" :poster="anime.coverImage?.large" />
               </div>
             </div>
 
@@ -63,7 +52,6 @@
                 <span class="mr-1 text-sm">Episodes</span>
                 <select
                   v-model="selectedRange"
-                  @change="updateDisplayedEpisodes"
                   class="btn px-2 py-1 mr-2 border border-dark-300"
                 >
                   <option v-if="episodeRanges.length === 0" value="0">0</option>
@@ -257,13 +245,13 @@
 
 <script>
 import axios from 'axios'
-import videojs from 'video.js'
-import 'video.js/dist/video-js.css'
 import { queryAnilist } from '@/utils/anilist'
+import VideoPlayer from '@/components/player/VideoPlayer.vue'
 
 const PAHE_API = 'https://lunapaheapi.vercel.app'
 
 export default {
+  components: { VideoPlayer },
   data() {
     return {
       isLoading: true,
@@ -274,7 +262,7 @@ export default {
       perPage: 100,
       showFullDescription: false,
       activeEpisode: null,
-      playerReady: false
+      streamUrl: ''
     }
   },
   computed: {
@@ -309,17 +297,6 @@ export default {
       immediate: true
     }
   },
-  mounted() {
-    document.addEventListener('keydown', this.handleKeyDown)
-  },
-  beforeUnmount() {
-    document.removeEventListener('keydown', this.handleKeyDown)
-    const video = document.getElementById('video-element')
-    if (video && videojs.getPlayer(video)) {
-      videojs.getPlayer(video).dispose()
-    }
-    this.playerReady = false
-  },
   methods: {
     findSelectedIndex() {
       return this.displayedEpisodes.findIndex(
@@ -336,25 +313,6 @@ export default {
         this.selectEpisode(this.displayedEpisodes[idx + 1])
       }
     },
-    getOrInitPlayer() {
-      const video = document.getElementById('video-element')
-      if (!video) return null
-      if (videojs.getPlayer(video)) return videojs.getPlayer(video)
-      const player = videojs(video, { controls: true, preload: 'auto' })
-      this.playerReady = true
-      return player
-    },
-    stopVideoPlayer() {
-      const video = document.getElementById('video-element')
-      if (!video) return
-      const player = videojs.getPlayer(video)
-      if (player && !player.paused()) player.pause()
-    },
-    handleKeyDown(event) {
-      const video = this.$refs.videoElement
-      if (event.keyCode === 37 && video) video.currentTime -= 5
-      else if (event.keyCode === 39 && video) video.currentTime += 5
-    },
     parseDescription(description) {
       if (!description) return ''
       const parser = new DOMParser()
@@ -367,7 +325,7 @@ export default {
       this.paheEpisodes = []
       this.paheSession = null
       this.activeEpisode = null
-      this.playerReady = false
+      this.streamUrl = ''
 
       const id = this.$route.params.id
 
@@ -427,8 +385,6 @@ export default {
 
       this.isLoading = false
 
-      await this.$nextTick()
-
       try {
         const title = this.anime.title?.english || this.anime.title?.romaji
         const searchRes = await axios.get(`${PAHE_API}/search?q=${encodeURIComponent(title)}`)
@@ -445,7 +401,6 @@ export default {
       }
     },
     async selectEpisode(episode) {
-      this.stopVideoPlayer()
       this.activeEpisode = episode
       try {
         const srcRes = await axios.get(
@@ -459,17 +414,8 @@ export default {
         const m3u8Res = await axios.get(
           `${PAHE_API}/m3u8?url=${encodeURIComponent(source.url)}`
         )
-        const { proxy_url } = m3u8Res.data
 
-        const player = this.getOrInitPlayer()
-        if (!player) return
-
-        player.src({
-          src: `${PAHE_API}${proxy_url}`,
-          type: 'application/x-mpegURL',
-          withCredentials: false
-        })
-        player.play()
+        this.streamUrl = `${PAHE_API}${m3u8Res.data.proxy_url}`
       } catch (err) {
         console.error(err)
       }
