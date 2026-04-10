@@ -1,3 +1,4 @@
+
 <template>
   <div class="container mx-auto">
     <template v-if="isLoading">
@@ -53,11 +54,7 @@
                   height="500"
                   :poster="anime.cover"
                   data-setup="{}"
-                >
-                  <template v-if="anime.type === 'MUSIC'">
-                    <source :src="anime.trailer.thumbnail" type="video/mp4" />
-                  </template>
-                </video>
+                ></video>
               </div>
             </div>
 
@@ -197,7 +194,7 @@
                   <p class="text-sm mr-2">Status: {{ anime.status }}</p>
                   <p class="text-sm mr-2">
                     Sub/Dub: <span class="uppercase">{{ anime.subOrDub }}</span>
-                  </p>
+                  </span>
                   <p class="text-sm mr-2">Country: {{ anime.countryOfOrigin }}</p>
                   <div class="text-sm mr-2 flex items-center">
                     <span>Genres:</span>
@@ -228,9 +225,7 @@
         </div>
 
         <span class="text-lg">You may also like</span>
-        <div
-          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 animated mt-5"
-        >
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2 animated mt-5">
           <RouterLink
             :to="'/anime/' + recommendation.id"
             v-for="recommendation in anime.recommendations.slice(0, 6)"
@@ -244,13 +239,9 @@
                 draggable="false"
                 class="w-full h-60 md:h-80 object-cover transition-opacity duration-300"
               />
-              <div
-                class="absolute h-[102%] inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300"
-              ></div>
+              <div class="absolute h-[102%] inset-0 bg-black opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
             </div>
-            <div
-              class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:animated hover:animated-fade-in"
-            >
+            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:animated hover:animated-fade-in">
               <div i-carbon-play-filled class="text-white text-7xl" style="margin-top: -1em"></div>
             </div>
             <div class="p-4">
@@ -278,18 +269,18 @@ import axios from 'axios'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
 
-import.meta.env.VITE_API_URL
+const PAHE_API = 'https://lunapaheapi.vercel.app'
 
 export default {
   data() {
     return {
       isLoading: true,
       anime: null,
+      paheSession: null,
+      paheEpisodes: [],
       selectedRange: '1-100',
       perPage: 100,
-      provider: 'gogoanime',
       showFullDescription: false,
-      selectedEpisode: null,
       selectedEpisodeUrl: '',
       activeEpisode: null,
       videoPlaying: false,
@@ -301,15 +292,15 @@ export default {
       return this.anime.relations.filter((relation) => this.isPrequelOrSequel(relation))
     },
     displayedEpisodes() {
-      if (this.anime) {
+      if (this.paheEpisodes.length > 0) {
         const [start, end] = this.selectedRange.split('-').map(Number)
-        return this.anime.episodes.slice(start - 1, end)
+        return this.paheEpisodes.slice(start - 1, end)
       }
       return []
     },
     episodeRanges() {
-      if (this.anime) {
-        const totalEpisodes = this.anime.episodes.length
+      if (this.paheEpisodes.length > 0) {
+        const totalEpisodes = this.paheEpisodes.length
         const maxPerPage = this.perPage
         const rangeCount = Math.ceil(totalEpisodes / maxPerPage)
         if (rangeCount > 0) {
@@ -326,10 +317,6 @@ export default {
     }
   },
   watch: {
-    provider: {
-      handler: 'updateProvider',
-      immediate: true
-    },
     '$route.params.id': {
       handler: 'updateProvider',
       immediate: true
@@ -350,22 +337,22 @@ export default {
     selectPreviousEpisode() {
       const selectedIndex = this.findSelectedIndex()
       if (selectedIndex > 0) {
-        const prevEpisode = this.displayedEpisodes[selectedIndex - 1]
-        this.selectEpisode(prevEpisode)
+        this.selectEpisode(this.displayedEpisodes[selectedIndex - 1])
       }
     },
     selectNextEpisode() {
       const selectedIndex = this.findSelectedIndex()
       if (selectedIndex !== -1 && selectedIndex < this.displayedEpisodes.length - 1) {
-        const nextEpisode = this.displayedEpisodes[selectedIndex + 1]
-        this.selectEpisode(nextEpisode)
+        this.selectEpisode(this.displayedEpisodes[selectedIndex + 1])
       }
     },
     stopVideoPlayer() {
       const video = document.getElementById('video-element')
-      const player = videojs(video)
-      if (!player.paused()) {
-        player.load()
+      if (video) {
+        const player = videojs(video)
+        if (!player.paused()) {
+          player.load()
+        }
       }
     },
     isPrequelOrSequel(relation) {
@@ -387,15 +374,31 @@ export default {
     async updateProvider() {
       this.isLoading = true
       const id = this.$route.params.id
-      const provider = this.provider
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/meta/anilist/info/${id}?provider=${provider}`
+        const infoRes = await axios.get(
+          `${import.meta.env.VITE_API_URL}/meta/anilist/info/${id}`
         )
-        this.anime = response.data
+        this.anime = infoRes.data
+
+        const title = this.anime.title?.english || this.anime.title?.romaji
+        const searchRes = await axios.get(
+          `${PAHE_API}/search?q=${encodeURIComponent(title)}`
+        )
+
+        if (!searchRes.data.length) throw new Error('No pahe results')
+
+        this.paheSession = searchRes.data[0].session
+
+        const epRes = await axios.get(
+          `${PAHE_API}/episodes?session=${this.paheSession}`
+        )
+        this.paheEpisodes = epRes.data
+
         if (this.episodeRanges.length > 0) {
           this.selectedRange = this.episodeRanges[0]
-          this.selectEpisode(this.displayedEpisodes[0])
+        }
+        if (this.paheEpisodes.length > 0) {
+          this.selectEpisode(this.paheEpisodes[0])
         }
       } catch (error) {
         console.error(error)
@@ -403,42 +406,32 @@ export default {
         this.isLoading = false
       }
     },
-    async fetchEpisodeUrl(episodeId) {
-      try {
-        let url
-        if (this.provider === 'zoro') {
-          const response = await axios.get(`${import.meta.env.VITE_API_URL}/anime/zoro${episodeId}`)
-          url = response.data.sources[0].url
-        } else if (this.provider === 'gogoanime') {
-          const response = await axios.get(
-            `${import.meta.env.VITE_API_URL}/anime/gogoanime${episodeId}`
-          )
-          url = response.data.sources[0].url
-        }
-        this.selectedEpisodeUrl = url
-      } catch (error) {
-        console.error(error)
-      }
-    },
     async selectEpisode(episode) {
       this.stopVideoPlayer()
       this.activeEpisode = episode
       try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/anime/${this.provider}/watch/${episode.id.replace(
-            /^\//,
-            ''
-          )}`
+        const srcRes = await axios.get(
+          `${PAHE_API}/sources?anime_session=${this.paheSession}&episode_session=${episode.session}`
         )
-        const sources = response.data.sources
-        const defaultSource = sources.find((source) => source.quality === 'default')
-        if (defaultSource) {
-          this.selectedEpisodeUrl = defaultSource.url
-          const video = document.getElementById('video-element')
-          const player = videojs(video)
-          player.src(this.selectedEpisodeUrl)
-          player.play()
-        }
+
+        const source =
+          srcRes.data.find((s) => s.quality === '1080p') ||
+          srcRes.data.find((s) => s.quality === '720p') ||
+          srcRes.data[0]
+
+        const m3u8Res = await axios.get(
+          `${PAHE_API}/m3u8?url=${encodeURIComponent(source.url)}`
+        )
+
+        const { m3u8 } = m3u8Res.data
+
+        const video = document.getElementById('video-element')
+        const player = videojs(video)
+        player.src({
+          src: m3u8,
+          type: 'application/x-mpegURL'
+        })
+        player.play()
       } catch (error) {
         console.error(error)
       }
@@ -449,13 +442,6 @@ export default {
     goToRecommendation(id) {
       this.$router.push(`/anime/${id}`)
       window.scrollTo(0, 0)
-    },
-    created() {
-      this.updateProvider()
-      if (this.displayedEpisodes.length > 0) {
-        this.selectedEpisode = this.displayedEpisodes[0]
-        this.fetchEpisodeUrl(this.selectedEpisode.id)
-      }
     }
   }
 }
@@ -465,27 +451,6 @@ export default {
 .active-episode {
   background-color: rgba(34, 34, 34, var(--un-bg-opacity));
   color: rgba(254, 215, 170);
-}
-
-.truncate {
-  max-height: 150px;
-  overflow: hidden;
-  position: relative;
-}
-
-.truncate::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  background: linear-gradient(to right, rgba(255, 255, 255, 0), white 80%);
-  pointer-events: none;
-}
-
-.description-container {
-  max-height: 250px;
-  overflow-y: auto;
-  position: relative;
 }
 
 .truncate {
