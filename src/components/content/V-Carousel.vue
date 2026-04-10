@@ -56,10 +56,8 @@
 
 <script>
 import { ref } from 'vue'
-import axios from 'axios'
 import { Swiper, SwiperSlide } from 'swiper/vue'
-
-import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 import 'swiper/css'
 import 'swiper/css/pagination'
@@ -84,13 +82,41 @@ export default {
     async function fetchResults() {
       try {
         loading.value = true
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/meta/anilist/trending`, {
-          params: {
-            page: 17,
-            perPage: 20
+        const trendingQuery = `
+          query ($page: Int, $perPage: Int) {
+            Page(page: $page, perPage: $perPage) {
+              media(sort: TRENDING_DESC, type: ANIME) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                }
+                description
+                episodes
+                status
+                season
+                seasonYear
+                genres
+                averageScore
+                popularity
+              }
+              pageInfo {
+                total
+                perPage
+                currentPage
+                lastPage
+                hasNextPage
+              }
+            }
           }
-        })
-        results.value = response.data.results
+        `
+        const variables = { page: 17, perPage: 20 }
+        const response = await queryAnilist(trendingQuery, variables)
+        results.value = response.data.Page.media
       } catch (err) {
         throw new Error(err.message)
       } finally {

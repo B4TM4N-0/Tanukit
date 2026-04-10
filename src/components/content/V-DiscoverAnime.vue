@@ -81,9 +81,7 @@
 </template>
 
 <script>
-import axios from 'axios'
-
-import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 export default {
   data() {
@@ -102,13 +100,42 @@ export default {
 
     try {
       this.isLoading = true
-      const { data } = await axios.get(
-        `${import.meta.env.VITE_API_URL}/meta/anilist/advanced-search`,
-        {
-          params: { page, perPage, year, status }
+      const discoverQuery = `
+        query ($page: Int, $perPage: Int, $seasonYear: Int, $status: MediaStatus) {
+          Page(page: $page, perPage: $perPage) {
+            media(seasonYear: $seasonYear, status: $status, type: ANIME) {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+              description
+              episodes
+              status
+              season
+              seasonYear
+              genres
+              averageScore
+              popularity
+            }
+            pageInfo {
+              total
+              perPage
+              currentPage
+              lastPage
+              hasNextPage
+            }
+          }
         }
-      )
-      this.animeList = data.results
+      `
+      const variables = { page, perPage, seasonYear: year, status }
+      const response = await queryAnilist(discoverQuery, variables)
+      this.animeList = response.data.Page.media
+      this.totalPages = response.data.Page.pageInfo.lastPage
     } catch (err) {
       console.error(err.message)
     } finally {
@@ -123,18 +150,42 @@ export default {
 
       try {
         this.isLoading = true
-        const { data } = await axios.get(
-          `${import.meta.env.VITE_API_URL}/meta/anilist/advanced-search`,
-          {
-            params: { page: this.page, perPage, year, status }
+        const discoverQuery = `
+          query ($page: Int, $perPage: Int, $seasonYear: Int, $status: MediaStatus) {
+            Page(page: $page, perPage: $perPage) {
+              media(seasonYear: $seasonYear, status: $status, type: ANIME) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                }
+                description
+                episodes
+                status
+                season
+                seasonYear
+                genres
+                averageScore
+                popularity
+              }
+              pageInfo {
+                total
+                perPage
+                currentPage
+                lastPage
+                hasNextPage
+              }
+            }
           }
-        )
-        this.animeList = data.results
-        if (data.pageInfo && data.pageInfo.lastPage) {
-          this.totalPages = data.pageInfo.lastPage
-        } else {
-          this.totalPages = null
-        }
+        `
+        const variables = { page: this.page, perPage, seasonYear: year, status }
+        const response = await queryAnilist(discoverQuery, variables)
+        this.animeList = response.data.Page.media
+        this.totalPages = response.data.Page.pageInfo.lastPage
       } catch (err) {
         console.error(err.message)
       } finally {

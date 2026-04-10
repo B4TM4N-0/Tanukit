@@ -82,9 +82,7 @@
 </template>
 
 <script>
-import axios from 'axios'
-
-import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 function getFormatParam(type) {
   const formatMap = {
@@ -128,18 +126,47 @@ export default {
 
       try {
         this.isLoading = true
-        const { data } = await axios.get(
-          `${import.meta.env.VITE_API_URL}/meta/anilist/advanced-search`,
-          {
-            params: { page: this.page, perPage, status, format: getFormatParam(this.type) }
+        const advancedSearchQuery = `
+          query ($page: Int, $perPage: Int, $format: MediaFormat, $status: MediaStatus) {
+            Page(page: $page, perPage: $perPage) {
+              media(format: $format, status: $status, type: ANIME) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                }
+                description
+                episodes
+                status
+                season
+                seasonYear
+                genres
+                averageScore
+                popularity
+              }
+              pageInfo {
+                total
+                perPage
+                currentPage
+                lastPage
+                hasNextPage
+              }
+            }
           }
-        )
-
-        if (data.pageInfo) {
-          this.totalPages = data.pageInfo.lastPage
+        `
+        const variables = {
+          page: this.page,
+          perPage,
+          format: getFormatParam(this.type),
+          status
         }
-
-        this.animeList = data.results
+        const response = await queryAnilist(advancedSearchQuery, variables)
+        this.animeList = response.data.Page.media
+        this.totalPages = response.data.Page.pageInfo.lastPage
       } catch (err) {
         console.error(err.message)
       } finally {

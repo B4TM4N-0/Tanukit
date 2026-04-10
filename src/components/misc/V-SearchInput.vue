@@ -53,8 +53,6 @@
 <script>
 import { useSearchStore } from '@/stores/searchStore'
 
-import.meta.env.VITE_API_URL
-
 export default {
   setup() {
     const searchStore = useSearchStore()

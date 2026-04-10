@@ -19,8 +19,8 @@
         >
           <div class="relative">
             <img
-              :src="anime.image"
-              :alt="anime.title"
+              :src="anime.coverImage.large"
+              :alt="anime.title.english || anime.title.romaji"
               draggable="false"
               class="w-full h-60 md:h-80 object-cover transition-opacity duration-300"
             />
@@ -35,10 +35,10 @@
           </div>
           <div class="p-4">
             <h3 class="font-semibold truncate">
-              {{ anime.title?.english || anime.title?.userPreferred || anime.title?.romaji }}
+              {{ anime.title.english || anime.title.romaji }}
             </h3>
-            <p class="text-sm">Type: {{ anime.type }}</p>
-            <p class="text-sm text-orange-300 underline">{{ anime.episodeTitle }}</p>
+            <p class="text-sm">Status: {{ anime.status }}</p>
+            <p class="text-sm text-orange-300">{{ anime.seasonYear }}</p>
           </div>
         </RouterLink>
       </div>
@@ -47,9 +47,7 @@
 </template>
 
 <script>
-import axios from 'axios'
-
-const apiUrl = import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 export default {
   data() {
@@ -63,8 +61,42 @@ export default {
   async created() {
     try {
       this.isLoading = true
-      const { data } = await axios.get(`${apiUrl}/meta/anilist/recent-episodes`)
-      this.animeList = data.results
+      const recentQuery = `
+        query ($page: Int, $perPage: Int) {
+          Page(page: $page, perPage: $perPage) {
+            media(sort: START_DATE_DESC, type: ANIME) {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+              description
+              episodes
+              status
+              season
+              seasonYear
+              genres
+              averageScore
+              popularity
+            }
+            pageInfo {
+              total
+              perPage
+              currentPage
+              lastPage
+              hasNextPage
+            }
+          }
+        }
+      `
+      const variables = { page: 1, perPage: 48 }
+      const response = await queryAnilist(recentQuery, variables)
+      this.animeList = response.data.Page.media
+      this.totalPages = response.data.Page.pageInfo.lastPage
     } catch (err) {
       console.error(err.message)
     } finally {
@@ -75,13 +107,42 @@ export default {
     async fetchAnimeList() {
       try {
         this.isLoading = true
-        const { data } = await axios.get(`${apiUrl}/meta/anilist/recent-episodes`)
-        this.animeList = data.results
-        if (data.pageInfo && data.pageInfo.lastPage) {
-          this.totalPages = data.pageInfo.lastPage
-        } else {
-          this.totalPages = null
-        }
+        const recentQuery = `
+          query ($page: Int, $perPage: Int) {
+            Page(page: $page, perPage: $perPage) {
+              media(sort: START_DATE_DESC, type: ANIME) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                }
+                description
+                episodes
+                status
+                season
+                seasonYear
+                genres
+                averageScore
+                popularity
+              }
+              pageInfo {
+                total
+                perPage
+                currentPage
+                lastPage
+                hasNextPage
+              }
+            }
+          }
+        `
+        const variables = { page: this.page, perPage: 48 }
+        const response = await queryAnilist(recentQuery, variables)
+        this.animeList = response.data.Page.media
+        this.totalPages = response.data.Page.pageInfo.lastPage
       } catch (err) {
         console.error(err.message)
       } finally {

@@ -82,9 +82,7 @@
 </template>
 
 <script>
-import axios from 'axios'
-
-import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 export default {
   data() {
@@ -101,10 +99,42 @@ export default {
 
     try {
       this.isLoading = true
-      const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/meta/anilist/popular`, {
-        params: { page, perPage }
-      })
-      this.animeList = data.results
+      const popularQuery = `
+        query ($page: Int, $perPage: Int) {
+          Page(page: $page, perPage: $perPage) {
+            media(sort: POPULARITY_DESC, type: ANIME) {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+              }
+              description
+              episodes
+              status
+              season
+              seasonYear
+              genres
+              averageScore
+              popularity
+            }
+            pageInfo {
+              total
+              perPage
+              currentPage
+              lastPage
+              hasNextPage
+            }
+          }
+        }
+      `
+      const variables = { page, perPage }
+      const response = await queryAnilist(popularQuery, variables)
+      this.animeList = response.data.Page.media
+      this.totalPages = response.data.Page.pageInfo.lastPage
     } catch (err) {
       console.error(err.message)
     } finally {
@@ -117,15 +147,42 @@ export default {
 
       try {
         this.isLoading = true
-        const { data } = await axios.get(`${import.meta.env.VITE_API_URL}/meta/anilist/popular`, {
-          params: { page: this.page, perPage }
-        })
-        this.animeList = data.results
-        if (data.pageInfo && data.pageInfo.lastPage) {
-          this.totalPages = data.pageInfo.lastPage
-        } else {
-          this.totalPages = null
-        }
+        const popularQuery = `
+          query ($page: Int, $perPage: Int) {
+            Page(page: $page, perPage: $perPage) {
+              media(sort: POPULARITY_DESC, type: ANIME) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                }
+                description
+                episodes
+                status
+                season
+                seasonYear
+                genres
+                averageScore
+                popularity
+              }
+              pageInfo {
+                total
+                perPage
+                currentPage
+                lastPage
+                hasNextPage
+              }
+            }
+          }
+        `
+        const variables = { page: this.page, perPage }
+        const response = await queryAnilist(popularQuery, variables)
+        this.animeList = response.data.Page.media
+        this.totalPages = response.data.Page.pageInfo.lastPage
       } catch (err) {
         console.error(err.message)
       } finally {

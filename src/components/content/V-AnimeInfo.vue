@@ -194,7 +194,7 @@
                   <p class="text-sm mr-2">Status: {{ anime.status }}</p>
                   <p class="text-sm mr-2">
                     Sub/Dub: <span class="uppercase">{{ anime.subOrDub }}</span>
-                  </span>
+                  </p>
                   <p class="text-sm mr-2">Country: {{ anime.countryOfOrigin }}</p>
                   <div class="text-sm mr-2 flex items-center">
                     <span>Genres:</span>
@@ -268,6 +268,7 @@
 import axios from 'axios'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
+import { queryAnilist } from '@/utils/anilist'
 
 const PAHE_API = 'https://lunapaheapi.vercel.app'
 
@@ -350,7 +351,7 @@ export default {
       const video = document.getElementById('video-element')
       if (video) {
         const player = videojs(video)
-        if (!player.paused()) {
+        if (player && !player.paused()) {
           player.load()
         }
       }
@@ -375,30 +376,68 @@ export default {
       this.isLoading = true
       const id = this.$route.params.id
       try {
-        const infoRes = await axios.get(
-          `${import.meta.env.VITE_API_URL}/meta/anilist/info/${id}`
-        )
-        this.anime = infoRes.data
+        const infoQuery = `
+          query ($id: Int) {
+            Media(id: $id, type: ANIME) {
+              id
+              title {
+                romaji
+                english
+                native
+              }
+              coverImage {
+                large
+                extraLarge
+              }
+              bannerImage
+              description
+              episodes
+              status
+              season
+              seasonYear
+              genres
+              averageScore
+              popularity
+              studios {
+                nodes {
+                  name
+                }
+              }
+              characters {
+                nodes {
+                  name {
+                    full
+                  }
+                  image {
+                    large
+                  }
+                }
+              }
+            }
+          }
+        `
+        const response = await queryAnilist(infoQuery, { id: parseInt(id) })
+        this.anime = response.data.Media
 
         const title = this.anime.title?.english || this.anime.title?.romaji
         const searchRes = await axios.get(
           `${PAHE_API}/search?q=${encodeURIComponent(title)}`
         )
 
-        if (!searchRes.data.length) throw new Error('No pahe results')
+        if (searchRes.data.length > 0) {
+          this.paheSession = searchRes.data[0].session
 
-        this.paheSession = searchRes.data[0].session
+          const epRes = await axios.get(
+            `${PAHE_API}/episodes?session=${this.paheSession}`
+          )
+          this.paheEpisodes = epRes.data
 
-        const epRes = await axios.get(
-          `${PAHE_API}/episodes?session=${this.paheSession}`
-        )
-        this.paheEpisodes = epRes.data
-
-        if (this.episodeRanges.length > 0) {
-          this.selectedRange = this.episodeRanges[0]
-        }
-        if (this.paheEpisodes.length > 0) {
-          this.selectEpisode(this.paheEpisodes[0])
+          if (this.episodeRanges.length > 0) {
+            this.selectedRange = this.episodeRanges[0]
+          }
+          if (this.paheEpisodes.length > 0) {
+            this.selectEpisode(this.paheEpisodes[0])
+          }
         }
       } catch (error) {
         console.error(error)
@@ -423,14 +462,23 @@ export default {
           `${PAHE_API}/m3u8?url=${encodeURIComponent(source.url)}`
         )
 
-        const { m3u8 } = m3u8Res.data
+        const { proxy_url, referer } = m3u8Res.data
 
         const video = document.getElementById('video-element')
         const player = videojs(video)
         player.src({
-          src: m3u8,
-          type: 'application/x-mpegURL'
+          src: `https://lunapaheapi.vercel.app${proxy_url}`,
+          type: 'application/x-mpegURL',
+          withCredentials: false
         })
+
+        player.tech().el_.setAttribute('crossorigin', 'anonymous')
+
+        videojs.Vhs.xhr.beforeRequest = (options) => {
+          options.headers = options.headers || {}
+          options.headers['Referer'] = referer
+          return options
+        }
         player.play()
       } catch (error) {
         console.error(error)

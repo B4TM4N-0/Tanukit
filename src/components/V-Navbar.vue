@@ -152,15 +152,10 @@ export default {
       }
     },
     async handleTypeChange() {
-      const type = this.$route.params.type
+      // const type = this.$route.params.type
 
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/meta/anilist/${query}`)
-        const data = await response.json()
-        this.searchResults = data.results
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      }
+      // Perhaps not needed, or update to use Anilist
+      // For now, do nothing or remove
     }
   },
   watch: {

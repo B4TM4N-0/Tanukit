@@ -82,9 +82,7 @@
 </template>
 
 <script>
-import axios from 'axios'
-
-import.meta.env.VITE_API_URL
+import { queryAnilist } from '@/utils/anilist'
 
 export default {
   data() {
@@ -101,14 +99,42 @@ export default {
       const perPage = 48
       try {
         this.isLoading = true
-        const { data } = await axios.get(
-          `${import.meta.env.VITE_API_URL}/meta/anilist/advanced-search`,
-          {
-            params: { page: this.page, perPage, genres: `[${JSON.stringify(this.genre)}]` }
+        const genreQuery = `
+          query ($page: Int, $perPage: Int, $genre: String) {
+            Page(page: $page, perPage: $perPage) {
+              media(genre: $genre, type: ANIME) {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                }
+                coverImage {
+                  large
+                }
+                description
+                episodes
+                status
+                season
+                seasonYear
+                genres
+                averageScore
+                popularity
+              }
+              pageInfo {
+                total
+                perPage
+                currentPage
+                lastPage
+                hasNextPage
+              }
+            }
           }
-        )
-        this.animeList = data.results
-        this.totalPages = data.pageInfo.lastPage
+        `
+        const variables = { page: this.page, perPage, genre: this.genre }
+        const response = await queryAnilist(genreQuery, variables)
+        this.animeList = response.data.Page.media
+        this.totalPages = response.data.Page.pageInfo.lastPage
       } catch (err) {
         console.error(err.message)
       } finally {

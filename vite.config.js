@@ -18,5 +18,14 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  },
+  server: {
+    proxy: {
+      '/pahe': {
+        target: 'https://lunapaheapi.vercel.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/pahe/, '')
+      }
+    }
   }
 })
