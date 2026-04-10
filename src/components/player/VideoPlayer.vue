@@ -119,7 +119,6 @@ export default {
     }
   },
   mounted() {
-    this.initHls()
     document.addEventListener('fullscreenchange', this.onFullscreenChange)
     document.addEventListener('keydown', this.onKeyDown)
   },
@@ -129,25 +128,29 @@ export default {
     document.removeEventListener('keydown', this.onKeyDown)
   },
   methods: {
-    initHls() {
-      if (Hls.isSupported()) {
-        this.hls = new Hls()
-        if (this.src) this.loadSource(this.src)
-      }
-    },
     loadSource(url) {
       const video = this.$refs.videoEl
-      if (!video) return
-      if (Hls.isSupported() && this.hls) {
-        this.hls.detachMedia()
+      if (!video || !url) return
+
+      if (Hls.isSupported()) {
+        if (this.hls) this.hls.destroy()
+
+        this.hls = new Hls()
+
         this.hls.loadSource(url)
         this.hls.attachMedia(video)
+
         this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.play()
         })
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+
+        this.hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            console.error('Fatal HLS error:', data)
+          }
+        })
+      } else {
         video.src = url
-        video.play()
       }
     },
     togglePlay() {
