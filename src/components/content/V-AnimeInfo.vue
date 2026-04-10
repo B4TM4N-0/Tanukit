@@ -5,7 +5,7 @@
       <VSpinner />
     </template>
     <template v-else-if="anime">
-      <div v-if="anime" class="max-w-screen-2xl mx-auto p-6">
+      <div class="max-w-screen-2xl mx-auto p-6">
         <nav class="flex py-5" aria-label="Breadcrumb">
           <ol class="inline-flex items-center">
             <li class="inline-flex items-center">
@@ -52,13 +52,13 @@
                   preload="auto"
                   width="800"
                   height="500"
-                  :poster="anime.coverImage.large"
+                  :poster="anime.coverImage?.large"
                   data-setup="{}"
                 ></video>
               </div>
             </div>
 
-            <div v-if="anime && anime.type !== 'MUSIC'" class="flex items-center py-3 pt-2">
+            <div v-if="anime.type !== 'MUSIC'" class="flex items-center py-3 pt-2">
               <div class="flex items-center">
                 <span class="mr-1 text-sm">Episodes</span>
                 <select
@@ -90,7 +90,7 @@
               </div>
             </div>
 
-            <div v-if="anime && anime.type !== 'MUSIC'" class="grid grid-cols-6 md:grid-cols-9 lg:grid-cols-11 xl:grid-cols-12 gap-1 px-5">
+            <div v-if="anime.type !== 'MUSIC'" class="grid grid-cols-6 md:grid-cols-9 lg:grid-cols-11 xl:grid-cols-12 gap-1 px-5">
               <div
                 v-for="(episode, index) in displayedEpisodes"
                 :key="index"
@@ -117,13 +117,13 @@
                 class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"
               >
                 <RouterLink
-                  :to="'/anime/' + relation.id"
+                  :to="'/anime/' + relation.node.id"
                   v-for="(relation, index) in filteredRelations"
                   :key="index"
                   class="btn relative group border border-dark-300"
                 >
                   <img
-                    :src="relation.coverImage.large"
+                    :src="relation.node.coverImage?.large"
                     draggable="false"
                     class="w-full h-10 object-cover opacity-10"
                     alt="Anime Cover"
@@ -140,7 +140,7 @@
             <div class="flex-col md:flex-row lg:items-start">
               <div class="items-center justify-center mx-auto text-center">
                 <img
-                  :src="anime.coverImage.large"
+                  :src="anime.coverImage?.large"
                   draggable="false"
                   class="w-75 pt-5 object-cover mb-4 md:mr-4 px-2"
                 />
@@ -160,24 +160,24 @@
                 </div>
                 <div class="mb-4">
                   <span
-                    v-if="anime.description.length > 150 && !this.showFullDescription"
+                    v-if="anime.description && anime.description.length > 150 && !showFullDescription"
                     class="font-bold cursor-pointer hover:underline"
-                    @click="this.showFullDescription = true"
+                    @click="showFullDescription = true"
                     >View more</span
                   >
                   <span
-                    v-if="this.showFullDescription"
+                    v-if="showFullDescription"
                     class="font-bold cursor-pointer hover:underline"
-                    @click="this.showFullDescription = false"
+                    @click="showFullDescription = false"
                     >View less</span
                   >
                 </div>
                 <div class="items-center">
                   <div class="flex items-center mb-2">
                     <div i-openmoji-star class="mr-1 py-2"></div>
-                    <span>{{ (anime.averageScore / 10).toFixed(1) }}</span>
+                    <span>{{ anime.averageScore ? (anime.averageScore / 10).toFixed(1) : 'N/A' }}</span>
                   </div>
-                  <p class="text-sm mr-2">Studio: {{ anime.studios.nodes[0]?.name }}</p>
+                  <p class="text-sm mr-2">Studio: {{ anime.studios?.nodes[0]?.name || 'N/A' }}</p>
                   <div>
                     <p class="text-sm mr-2">
                       Type:
@@ -188,9 +188,7 @@
                       >
                     </p>
                   </div>
-                  <p class="text-sm mr-2">
-                    Alternate Title: {{ anime.title?.native || anime.title?.romaji }}
-                  </p>
+                  <p class="text-sm mr-2">Alternate Title: {{ anime.title?.native || anime.title?.romaji }}</p>
                   <p class="text-sm mr-2">Status: {{ anime.status }}</p>
                   <p class="text-sm mr-2">Country: {{ anime.countryOfOrigin }}</p>
                   <div class="text-sm mr-2 flex items-center">
@@ -204,16 +202,12 @@
                       <span v-if="index !== anime.genres.length - 1" class="mr-1">,</span>
                     </p>
                   </div>
-                  <p class="text-sm mr-2">Premiered: {{ anime.season }} {{ anime.releaseDate }}</p>
+                  <p class="text-sm mr-2">Premiered: {{ anime.season }} {{ anime.seasonYear }}</p>
                   <p class="text-sm mr-2">
-                    Date Aired: {{ anime.startDate.year }}-{{ anime.startDate.month }}-{{
-                      anime.startDate.day
-                    }}
+                    Date Aired: {{ anime.startDate?.year }}-{{ anime.startDate?.month }}-{{ anime.startDate?.day }}
                   </p>
                   <p class="text-sm mr-2">
-                    Date Ended: {{ anime.endDate.year }}-{{ anime.endDate.month }}-{{
-                      anime.endDate.day
-                    }}
+                    Date Ended: {{ anime.endDate?.year }}-{{ anime.endDate?.month }}-{{ anime.endDate?.day }}
                   </p>
                 </div>
               </div>
@@ -231,8 +225,8 @@
           >
             <div class="relative">
               <img
-                :src="recommendation.mediaRecommendation.coverImage.large"
-                :alt="recommendation.mediaRecommendation.title.userPreferred"
+                :src="recommendation.mediaRecommendation.coverImage?.large"
+                :alt="recommendation.mediaRecommendation.title?.userPreferred"
                 draggable="false"
                 class="w-full h-60 md:h-80 object-cover transition-opacity duration-300"
               />
@@ -248,7 +242,7 @@
               <p class="text-sm">Type: {{ recommendation.mediaRecommendation.type }}</p>
               <div class="flex items-center">
                 <div i-openmoji-star class="mr-1 py-2" />
-                <span>{{ (recommendation.mediaRecommendation.averageScore / 10).toFixed(1) }}</span>
+                <span>{{ recommendation.mediaRecommendation.averageScore ? (recommendation.mediaRecommendation.averageScore / 10).toFixed(1) : 'N/A' }}</span>
               </div>
             </div>
           </RouterLink>
@@ -279,15 +273,15 @@ export default {
       selectedRange: '1-100',
       perPage: 100,
       showFullDescription: false,
-      selectedEpisodeUrl: '',
       activeEpisode: null,
-      videoPlaying: false,
-      showNotification: true
+      playerReady: false
     }
   },
   computed: {
     filteredRelations() {
-      return this.anime.relations.nodes.filter((relation) => this.isPrequelOrSequel(relation))
+      return (this.anime.relations?.edges || []).filter(
+        (edge) => edge.relationType === 'PREQUEL' || edge.relationType === 'SEQUEL'
+      )
     },
     displayedEpisodes() {
       if (this.paheEpisodes.length > 0) {
@@ -298,25 +292,20 @@ export default {
     },
     episodeRanges() {
       if (this.paheEpisodes.length > 0) {
-        const totalEpisodes = this.paheEpisodes.length
-        const maxPerPage = this.perPage
-        const rangeCount = Math.ceil(totalEpisodes / maxPerPage)
-        if (rangeCount > 0) {
-          return Array.from({ length: rangeCount }, (_, index) => {
-            const start = index * maxPerPage + 1
-            const end = Math.min((index + 1) * maxPerPage, totalEpisodes)
-            return `${start}-${end}`
-          })
-        } else {
-          return ['0']
-        }
+        const total = this.paheEpisodes.length
+        const rangeCount = Math.ceil(total / this.perPage)
+        return Array.from({ length: rangeCount }, (_, i) => {
+          const start = i * this.perPage + 1
+          const end = Math.min((i + 1) * this.perPage, total)
+          return `${start}-${end}`
+        })
       }
       return []
     }
   },
   watch: {
     '$route.params.id': {
-      handler: 'updateProvider',
+      handler: 'loadPage',
       immediate: true
     }
   },
@@ -325,110 +314,92 @@ export default {
   },
   beforeUnmount() {
     document.removeEventListener('keydown', this.handleKeyDown)
+    const video = document.getElementById('video-element')
+    if (video && videojs.getPlayer(video)) {
+      videojs.getPlayer(video).dispose()
+    }
+    this.playerReady = false
   },
   methods: {
     findSelectedIndex() {
       return this.displayedEpisodes.findIndex(
-        (episode) => episode.number === this.activeEpisode.number
+        (episode) => episode.number === this.activeEpisode?.number
       )
     },
     selectPreviousEpisode() {
-      const selectedIndex = this.findSelectedIndex()
-      if (selectedIndex > 0) {
-        this.selectEpisode(this.displayedEpisodes[selectedIndex - 1])
-      }
+      const idx = this.findSelectedIndex()
+      if (idx > 0) this.selectEpisode(this.displayedEpisodes[idx - 1])
     },
     selectNextEpisode() {
-      const selectedIndex = this.findSelectedIndex()
-      if (selectedIndex !== -1 && selectedIndex < this.displayedEpisodes.length - 1) {
-        this.selectEpisode(this.displayedEpisodes[selectedIndex + 1])
+      const idx = this.findSelectedIndex()
+      if (idx !== -1 && idx < this.displayedEpisodes.length - 1) {
+        this.selectEpisode(this.displayedEpisodes[idx + 1])
       }
+    },
+    getOrInitPlayer() {
+      const video = document.getElementById('video-element')
+      if (!video) return null
+      if (videojs.getPlayer(video)) return videojs.getPlayer(video)
+      const player = videojs(video, { controls: true, preload: 'auto' })
+      this.playerReady = true
+      return player
     },
     stopVideoPlayer() {
       const video = document.getElementById('video-element')
-      if (video) {
-        const player = videojs(video)
-        if (player && !player.paused()) {
-          player.load()
-        }
-      }
-    },
-    isPrequelOrSequel(relation) {
-      return relation.relationType === 'PREQUEL' || relation.relationType === 'SEQUEL'
+      if (!video) return
+      const player = videojs.getPlayer(video)
+      if (player && !player.paused()) player.pause()
     },
     handleKeyDown(event) {
       const video = this.$refs.videoElement
-      if (event.keyCode === 37 && video) {
-        video.currentTime -= 5
-      } else if (event.keyCode === 39 && video) {
-        video.currentTime += 5
-      }
+      if (event.keyCode === 37 && video) video.currentTime -= 5
+      else if (event.keyCode === 39 && video) video.currentTime += 5
     },
     parseDescription(description) {
+      if (!description) return ''
       const parser = new DOMParser()
       const doc = parser.parseFromString(description, 'text/html')
       return doc.body.innerHTML
     },
-    async updateProvider() {
+    async loadPage() {
       this.isLoading = true
+      this.anime = null
+      this.paheEpisodes = []
+      this.paheSession = null
+      this.activeEpisode = null
+      this.playerReady = false
+
       const id = this.$route.params.id
+
       try {
         const infoQuery = `
           query ($id: Int) {
             Media(id: $id, type: ANIME) {
               id
               type
-              title {
-                romaji
-                english
-                native
-                userPreferred
-              }
-              coverImage {
-                large
-                extraLarge
-              }
+              title { romaji english native userPreferred }
+              coverImage { large extraLarge }
               bannerImage
-              trailer {
-                id
-                site
-              }
+              trailer { id site }
               description
               episodes
               status
               season
               seasonYear
+              startDate { year month day }
+              endDate { year month day }
               genres
               averageScore
-              popularity
               countryOfOrigin
-              studios {
-                nodes {
-                  name
-                }
-              }
-              characters {
-                nodes {
-                  name {
-                    full
-                  }
-                  image {
-                    large
-                  }
-                }
-              }
+              studios { nodes { name } }
               relations {
-                nodes {
-                  id
-                  title {
-                    romaji
-                    english
-                    native
-                  }
-                  type
+                edges {
                   relationType
-                  coverImage {
-                    large
+                  node {
+                    id
+                    title { romaji english }
+                    coverImage { large }
+                    type
                   }
                 }
               }
@@ -436,16 +407,10 @@ export default {
                 nodes {
                   mediaRecommendation {
                     id
-                    title {
-                      romaji
-                      english
-                      native
-                    }
-                    coverImage {
-                      large
-                    }
+                    title { romaji english userPreferred }
+                    coverImage { large }
                     type
-                    rating
+                    averageScore
                   }
                 }
               }
@@ -454,31 +419,29 @@ export default {
         `
         const response = await queryAnilist(infoQuery, { id: parseInt(id) })
         this.anime = response.data.Media
-
-        const title = this.anime.title?.english || this.anime.title?.romaji
-        const searchRes = await axios.get(
-          `${PAHE_API}/search?q=${encodeURIComponent(title)}`
-        )
-
-        if (searchRes.data.length > 0) {
-          this.paheSession = searchRes.data[0].session
-
-          const epRes = await axios.get(
-            `${PAHE_API}/episodes?session=${this.paheSession}`
-          )
-          this.paheEpisodes = epRes.data
-
-          if (this.episodeRanges.length > 0) {
-            this.selectedRange = this.episodeRanges[0]
-          }
-          if (this.paheEpisodes.length > 0) {
-            this.selectEpisode(this.paheEpisodes[0])
-          }
-        }
-      } catch (error) {
-        console.error(error)
-      } finally {
+      } catch (err) {
+        console.error(err)
         this.isLoading = false
+        return
+      }
+
+      this.isLoading = false
+
+      await this.$nextTick()
+
+      try {
+        const title = this.anime.title?.english || this.anime.title?.romaji
+        const searchRes = await axios.get(`${PAHE_API}/search?q=${encodeURIComponent(title)}`)
+        if (!searchRes.data.length) return
+
+        this.paheSession = searchRes.data[0].session
+        const epRes = await axios.get(`${PAHE_API}/episodes?session=${this.paheSession}`)
+        this.paheEpisodes = epRes.data
+
+        if (this.episodeRanges.length > 0) this.selectedRange = this.episodeRanges[0]
+        if (this.paheEpisodes.length > 0) this.selectEpisode(this.paheEpisodes[0])
+      } catch (err) {
+        console.error(err)
       }
     },
     async selectEpisode(episode) {
@@ -488,7 +451,6 @@ export default {
         const srcRes = await axios.get(
           `${PAHE_API}/sources?anime_session=${this.paheSession}&episode_session=${episode.session}`
         )
-
         const source =
           srcRes.data.find((s) => s.quality === '1080p') ||
           srcRes.data.find((s) => s.quality === '720p') ||
@@ -497,31 +459,20 @@ export default {
         const m3u8Res = await axios.get(
           `${PAHE_API}/m3u8?url=${encodeURIComponent(source.url)}`
         )
+        const { proxy_url } = m3u8Res.data
 
-        const { proxy_url, referer } = m3u8Res.data
+        const player = this.getOrInitPlayer()
+        if (!player) return
 
-        const video = document.getElementById('video-element')
-        const player = videojs(video)
         player.src({
-          src: `https://lunapaheapi.vercel.app${proxy_url}`,
+          src: `${PAHE_API}${proxy_url}`,
           type: 'application/x-mpegURL',
           withCredentials: false
         })
-
-        player.tech().el_.setAttribute('crossorigin', 'anonymous')
-
-        videojs.Vhs.xhr.beforeRequest = (options) => {
-          options.headers = options.headers || {}
-          options.headers['Referer'] = referer
-          return options
-        }
         player.play()
-      } catch (error) {
-        console.error(error)
+      } catch (err) {
+        console.error(err)
       }
-    },
-    closeNotification() {
-      this.showNotification = false
     },
     goToRecommendation(id) {
       this.$router.push(`/anime/${id}`)
